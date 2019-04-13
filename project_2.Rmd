@@ -1,0 +1,131 @@
+---
+title: "Project 2"
+author: "Austin Simeone"
+date: "4/7/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readr)
+library(lubridate)
+library(corrplot)
+library(Hmisc)
+library(caret)
+```
+
+```{r}
+set.seed(69)
+#Read in the data and make initial transformations and ID
+kickstart_df<- read_csv("ks-projects-201801.csv")[,-c(1,2,5,7,9,13,14)]
+#removed name, and kickstarter money metrics and currency
+
+head(kickstart_df)
+
+levels(as.factor(kickstart_df$state))
+
+summary(kickstart_df)
+
+table(kickstart_df$state)
+
+#only keep success or failure
+kickstart_df <- subset(kickstart_df, state == 'successful' | state == 'failed')
+
+#remove old launched dates
+kickstart_df <- subset(kickstart_df, year(launched) >= 2009)
+
+#date time to just date
+kickstart_df$launched <- date(kickstart_df$launched)
+
+kickstart_df$length_of_campaign <- as.numeric(kickstart_df$deadline - kickstart_df$launched)
+
+table(kickstart_df$length_of_campaign)
+
+hist(as.numeric(kickstart_df$length_of_campaign)) #around 30 and around 60 right tail with a lot of 30 and 60
+
+
+kickstart_df$launch_month <- month(kickstart_df$launched)
+
+#kickstart_df$launch_year <- year(kickstart_df$launched)
+# we donn't need this for prediction
+
+# kickstart_df %>% 
+#   group_by(launch_year) %>%
+#   summarise(percentage = sum(state == 'successful')/(sum(state == 'successful')+ sum(state == 'failed')))
+
+#maybe make years from 2009
+
+kickstart_df %>% 
+  group_by(launch_month) %>%
+  summarise(percentage = sum(state == 'successful')/(sum(state == 'successful')+ sum(state == 'failed')))
+
+names(kickstart_df)
+
+# levels(as.factor(kickstart_df$category))
+# 
+# levels(as.factor(kickstart_df$main_category))
+
+lapply(kickstart_df, class)
+
+kickstart_df[,c(1,2,5,7,10)]<- lapply(kickstart_df[,c(1,2,5,7,10)], factor)
+
+kickstart_df<- kickstart_df[,-c(3,4)]
+
+kickstart_df_clean_no_main <- kickstart_df[,-2]
+
+kickstart_df_clean_yes_main <- kickstart_df[,-1]
+
+
+kickstart_matrix <- as.matrix(kickstart_df)
+
+kickstart_matrix_clean_no_main <- kickstart_matrix[,-2]
+
+kickstart_matrix_clean_yes_main <- kickstart_matrix[,-1]
+
+#DATA IS CLEAN
+
+```
+
+
+
+
+
+```{r}
+#check assumptions
+#no correlation between continuous 
+rcorr(kickstart_matrix[,c(4,6,7)])
+
+ggplot(kickstart_df, aes(main_category, backers)) + geom_boxplot()
+#close median far variance
+ggplot(kickstart_df, aes(main_category, usd_goal_real)) + geom_boxplot() 
+#close median far variance
+```
+
+```{r}
+fitControl <- trainControl(## 10-fold CV
+  method = "cv",
+  number = 10,
+  savePredictions = TRUE
+)
+
+logit_model <- train(state ~ ., data = kickstart_df,method="glm",family=binomial(),
+             trControl=fitControl)
+
+logit_model_main <- train(state ~ ., data = kickstart_df_clean_yes_main,method="glm",family=binomial(),
+             trControl=fitControl)
+
+logit_model_cat <- train(state ~ ., data = kickstart_df_clean_no_main,method="glm",family=binomial(),
+             trControl=fitControl)
+
+#selection model
+#decision tree
+#
+
+```
+
+
+
+
+
